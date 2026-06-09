@@ -1,0 +1,51 @@
+{
+    "matheus@exemplo.com": {
+        "nome": "Matheus",
+        "email": "matheus@exemplo.com",
+        "senha": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+        "tentativas_login": 0,
+        "bloqueado": false,
+        "codigo_desbloqueio": null,
+        "preferencias": {
+            "estilo_instrucao": "direto",
+            "preferencias_sensoriais": "visual",
+            "tipo_alerta": "visual",
+            "lembretes_ativos": true
+        },
+        "pontuacao": 0,
+        "tarefas_diarias": [
+            {
+                "titulo": "Arrumar a Casa",
+                "horario": "",
+                "data": "",
+                "concluida": false,
+                "passos": [],
+                "tempo_limite_min": 0
+            }
+        ],
+        "tarefas_educacionais": [],
+        "estudos": [],
+        "lembretes": [],
+        "historico": []
+    },
+    "rafa@gmail": {
+        "nome": "Rafa",
+        "email": "Rafa@gmail",
+        "senha": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+        "tentativas_login": 0,
+        "bloqueado": false,
+        "codigo_desbloqueio": null,
+        "preferencias": {
+            "estilo_instrucao": "direto",
+            "preferencias_sensoriais": "visual",
+            "tipo_alerta": "visual",
+            "lembretes_ativos": true
+        },
+        "pontuacao": 0,
+        "tarefas_diarias": [],
+        "tarefas_educacionais": [],
+        "estudos": [],
+        "lembretes": [],
+        "historico": []
+    }
+}
