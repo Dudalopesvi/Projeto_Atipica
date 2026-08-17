@@ -1,0 +1,28 @@
+# Ambientes Python
+.venv/
+.venv-*/
+**/venv/
+
+# Segredos e configurações locais
+.env
+**/.env
+
+# Dados locais de usuários
+**/tpac_users.json
+
+# Cache Python
+__pycache__/
+**/__pycache__/
+*.py[cod]
+
+# Dependências e build do frontend
+node_modules/
+**/node_modules/
+dist/
+
+# Backups e arquivos compactados locais
+Backup/
+*.zip
+
+# Cópia duplicada antiga do backend
+Atipica/Atipica/
