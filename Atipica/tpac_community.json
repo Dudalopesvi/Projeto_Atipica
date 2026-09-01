@@ -1,0 +1,22 @@
+{
+  "conversas": {
+    "dm-9af707c810e6": {
+      "id": "dm-9af707c810e6",
+      "tipo": "direta",
+      "participantes": [
+        "duda@gmail.com",
+        "opa@gmail.com"
+      ],
+      "mensagens": [
+        {
+          "id": "msg-1788154922992",
+          "email": "duda@gmail.com",
+          "texto": "ooooooooooo",
+          "criado_em": "2026-08-31T02:42:02"
+        }
+      ],
+      "criado_em": "2026-08-31T02:42:00"
+    }
+  },
+  "grupos": {}
+}

@@ -4,6 +4,7 @@ from copy import deepcopy
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ARQUIVO_USUARIOS = os.path.join(BASE_DIR, "..", "tpac_users.json")
+ARQUIVO_COMUNIDADE = os.path.join(BASE_DIR, "..", "tpac_community.json")
 
 BIBLIOTECA_BASE = [
     {"id": "art-rotina-visual", "titulo": "Rotinas visuais e previsibilidade", "tipo": "Artigo", "categoria": "rotina", "descricao": "Estratégias para organizar atividades com apoio visual.", "fonte": "Autoria Atípica", "url": ""},
@@ -13,6 +14,12 @@ BIBLIOTECA_BASE = [
     {"id": "serie-atypical", "titulo": "Atypical", "tipo": "Série", "categoria": "audiovisual", "descricao": "Série de ficção que aborda adolescência, família e autismo.", "fonte": "Netflix", "url": ""},
     {"id": "filme-temple", "titulo": "Temple Grandin", "tipo": "Filme", "categoria": "audiovisual", "descricao": "Filme biográfico sobre uma profissional autista e sua trajetória.", "fonte": "Cinema", "url": ""},
 ]
+
+
+def _usuario_sugerido(nome, email):
+    base = "".join(char.lower() if char.isalnum() else "-" for char in (nome or "pessoa")).strip("-") or "pessoa"
+    sufixo = "".join(char for char in (email or "").lower().split("@", 1)[0] if char.isalnum())[-4:]
+    return f"{base[:20]}-{sufixo}".strip("-")[:30]
 
 
 def _normalizar_perfil(perfil):
@@ -30,12 +37,23 @@ def _normalizar_perfil(perfil):
     perfil.setdefault("estudos", [])
     perfil.setdefault("lembretes", [])
     perfil.setdefault("pontuacao", 0)
+    publico = perfil.setdefault("usuario_publico", {})
+    publico.setdefault("nome_exibicao", perfil.get("nome", ""))
+    publico.setdefault("usuario", _usuario_sugerido(perfil.get("nome", ""), perfil.get("email", "")))
+    publico.setdefault("bio", "")
+    publico.setdefault("visibilidade", "publico")
+    comunidade = perfil.setdefault("comunidade", {})
+    comunidade.setdefault("seguindo", [])
+    comunidade.setdefault("seguidores", [])
+    comunidade.setdefault("publicacoes", [])
     preferencias = perfil.setdefault("preferencias", {})
     preferencias.setdefault("estilo_instrucao", "direto")
     preferencias.setdefault("preferencias_sensoriais", "visual")
     preferencias.setdefault("tipo_alerta", "visual")
     preferencias.setdefault("lembretes_ativos", True)
     for tarefa in perfil["tarefas_diarias"] + perfil["tarefas_educacionais"]:
+        tarefa.setdefault("periodo", "manha")
+        tarefa.setdefault("pontos", 10)
         tarefa.setdefault("passos", [])
         tarefa.setdefault("tempo_limite_min", 0)
         tarefa.setdefault("concluida", False)
@@ -70,6 +88,26 @@ def salvar_dados(dados):
     os.replace(temporario, caminho)
 
 
+def carregar_comunidade():
+    caminho = os.path.normpath(ARQUIVO_COMUNIDADE)
+    if not os.path.exists(caminho):
+        return {"conversas": {}, "grupos": {}}
+    with open(caminho, "r", encoding="utf-8") as arquivo:
+        dados = json.load(arquivo)
+    dados.setdefault("conversas", {})
+    dados.setdefault("grupos", {})
+    return dados
+
+
+def salvar_comunidade(dados):
+    caminho = os.path.normpath(ARQUIVO_COMUNIDADE)
+    os.makedirs(os.path.dirname(caminho), exist_ok=True)
+    temporario = caminho + ".tmp"
+    with open(temporario, "w", encoding="utf-8") as arquivo:
+        json.dump(dados, arquivo, indent=2, ensure_ascii=False)
+    os.replace(temporario, caminho)
+
+
 def perfil_padrao(nome, email, senha_hash, estilo="direto", preferencias_sensoriais="visual", tipo_alerta="visual", nome_crianca="", informacoes_crianca=None):
     return {
         "nome": nome,
@@ -81,6 +119,8 @@ def perfil_padrao(nome, email, senha_hash, estilo="direto", preferencias_sensori
         "codigo_desbloqueio": None,
         "preferencias": {"estilo_instrucao": estilo, "preferencias_sensoriais": preferencias_sensoriais, "tipo_alerta": tipo_alerta, "lembretes_ativos": True},
         "informacoes_crianca": informacoes_crianca or {"idade": "", "comunicacao": "", "necessidades": "", "interesses": ""},
+        "usuario_publico": {"nome_exibicao": nome, "usuario": _usuario_sugerido(nome, email), "bio": "", "visibilidade": "publico"},
+        "comunidade": {"seguindo": [], "seguidores": [], "publicacoes": []},
         "questionario": {"respondido": False, "respostas": {}, "atualizado_em": ""},
         "rede_apoio": [], "profissionais": [], "interacoes": [], "biblioteca": [],
         "pontuacao": 0, "tarefas_diarias": [], "tarefas_educacionais": [], "estudos": [], "lembretes": [], "historico": [],

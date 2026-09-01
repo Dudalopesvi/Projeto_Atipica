@@ -1,12 +1,61 @@
-html {
+:root {
+    font-family: "Atkinson Hyperlegible", "Segoe UI", Arial, sans-serif;
+    color: #24303a;
     background: #f7f4ef;
-}
-
-body {
-    margin: 0;
-    min-width: 320px;
+    font-size: 17px;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
 }
 
 * {
     box-sizing: border-box;
+}
+
+html {
+    min-width: 320px;
+    background: #f7f4ef;
+    scroll-behavior: smooth;
+}
+
+body {
+    min-width: 320px;
+    min-height: 100vh;
+    margin: 0;
+    background: #f7f4ef;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+a:focus-visible {
+    outline: 3px solid #d97756;
+    outline-offset: 3px;
+}
+
+::selection {
+    color: #fff;
+    background: #7d2844;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 0.01ms !important;
+    }
 }
