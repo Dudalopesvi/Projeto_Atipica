@@ -51,10 +51,21 @@ def _normalizar_perfil(perfil):
     preferencias.setdefault("preferencias_sensoriais", "visual")
     preferencias.setdefault("tipo_alerta", "visual")
     preferencias.setdefault("lembretes_ativos", True)
+    preferencias.setdefault("compartilhar_com_ia", False)
+    preferencias.setdefault("ia_permissoes", {"perfil": False, "preferencias": False, "rotina": False, "historico": False})
+    permissoes_ia = preferencias["ia_permissoes"]
+    if not isinstance(permissoes_ia, dict):
+        permissoes_ia = {}
+        preferencias["ia_permissoes"] = permissoes_ia
+    for categoria in ("perfil", "preferencias", "rotina", "historico"):
+        permissoes_ia.setdefault(categoria, False)
+    perfil.setdefault("ia_permissoes_log", [])
     for tarefa in perfil["tarefas_diarias"] + perfil["tarefas_educacionais"]:
         tarefa.setdefault("periodo", "manha")
         tarefa.setdefault("pontos", 10)
         tarefa.setdefault("passos", [])
+        if not tarefa["passos"]:
+            tarefa["passos"] = [{"texto": tarefa.get("titulo", "Atividade"), "concluida": bool(tarefa.get("concluida", False))}]
         tarefa.setdefault("tempo_limite_min", 0)
         tarefa.setdefault("concluida", False)
     for lembrete in perfil["lembretes"]:
@@ -117,13 +128,13 @@ def perfil_padrao(nome, email, senha_hash, estilo="direto", preferencias_sensori
         "tentativas_login": 0,
         "bloqueado": False,
         "codigo_desbloqueio": None,
-        "preferencias": {"estilo_instrucao": estilo, "preferencias_sensoriais": preferencias_sensoriais, "tipo_alerta": tipo_alerta, "lembretes_ativos": True},
+        "preferencias": {"estilo_instrucao": estilo, "preferencias_sensoriais": preferencias_sensoriais, "tipo_alerta": tipo_alerta, "lembretes_ativos": True, "compartilhar_com_ia": False, "ia_permissoes": {"perfil": False, "preferencias": False, "rotina": False, "historico": False}},
         "informacoes_crianca": informacoes_crianca or {"idade": "", "comunicacao": "", "necessidades": "", "interesses": ""},
         "usuario_publico": {"nome_exibicao": nome, "usuario": _usuario_sugerido(nome, email), "bio": "", "visibilidade": "publico"},
         "comunidade": {"seguindo": [], "seguidores": [], "publicacoes": []},
         "questionario": {"respondido": False, "respostas": {}, "atualizado_em": ""},
         "rede_apoio": [], "profissionais": [], "interacoes": [], "biblioteca": [],
-        "pontuacao": 0, "tarefas_diarias": [], "tarefas_educacionais": [], "estudos": [], "lembretes": [], "historico": [],
+        "pontuacao": 0, "tarefas_diarias": [], "tarefas_educacionais": [], "estudos": [], "lembretes": [], "historico": [], "ia_permissoes_log": [],
     }
 
 

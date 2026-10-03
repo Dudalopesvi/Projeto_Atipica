@@ -39,7 +39,9 @@ def _offline(pergunta, estilo):
 def _gerar_online(prompt, system, temperatura):
     if not _client:
         return None
-    resposta = _client.models.generate_content(model=_MODELO, contents=prompt, config=genai_types.GenerateContentConfig(system_instruction=system, temperature=temperatura))
+    config = genai_types.GenerateContentConfig(system_instruction=system, temperature=temperatura)
+    chat = _client.chats.create(model=_MODELO, config=config)
+    resposta = chat.send_message(prompt)
     texto = getattr(resposta, "text", "") or ""
     linhas = [linha.strip(" -*\t") for linha in texto.splitlines() if linha.strip()]
     return linhas or None

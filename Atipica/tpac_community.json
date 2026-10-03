@@ -18,5 +18,26 @@
       "criado_em": "2026-08-31T02:42:00"
     }
   },
-  "grupos": {}
+  "grupos": {
+    "grupo-1788392408650": {
+      "id": "grupo-1788392408650",
+      "nome": "pAticos",
+      "tema": "apoio",
+      "descricao": "pais atipicos",
+      "criador": "duda@gmail.com",
+      "participantes": [
+        "duda@gmail.com",
+        "joana123@gmail.com"
+      ],
+      "mensagens": [
+        {
+          "id": "msg-1788392461502",
+          "email": "duda@gmail.com",
+          "texto": "qual a cor do céu gnt? to em dúvida porque sou dautônico e não sei a cor do céu",
+          "criado_em": "2026-09-02T20:41:01"
+        }
+      ],
+      "criado_em": "2026-09-02T20:40:08"
+    }
+  }
 }

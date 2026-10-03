@@ -1,8 +1,9 @@
 import hashlib
+import json
 import os
 import random
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
@@ -125,7 +126,21 @@ def atualizar_perfil(payload: AtualizacaoPerfil, email: str = Query(...)):
     if payload.nome is not None: perfil["nome"] = payload.nome.strip()
     if payload.nome_crianca is not None: perfil["nome_crianca"] = payload.nome_crianca.strip()
     if payload.informacoes_crianca is not None: perfil["informacoes_crianca"].update(payload.informacoes_crianca)
-    if payload.preferencias is not None: perfil["preferencias"].update(payload.preferencias)
+    if payload.preferencias is not None:
+        preferencias_recebidas = dict(payload.preferencias)
+        permissoes_antes = dict(perfil.get("preferencias", {}).get("ia_permissoes", {}))
+        permissoes_depois = preferencias_recebidas.get("ia_permissoes")
+        if isinstance(permissoes_depois, dict):
+            permissoes_depois = {categoria: bool(permissoes_depois.get(categoria, False)) for categoria in ("perfil", "preferencias", "rotina", "historico")}
+            preferencias_recebidas["ia_permissoes"] = permissoes_depois
+            preferencias_recebidas["compartilhar_com_ia"] = any(permissoes_depois.values())
+            if permissoes_depois != permissoes_antes:
+                perfil.setdefault("ia_permissoes_log", []).append({
+                    "acao": "concedida" if any(permissoes_depois.values()) else "revogada",
+                    "categorias": [categoria for categoria, permitido in permissoes_depois.items() if permitido],
+                    "data": datetime.now().isoformat(timespec="seconds"),
+                })
+        perfil["preferencias"].update(preferencias_recebidas)
     salvar_dados(dados)
     return _perfil_publico(perfil)
 
@@ -139,6 +154,34 @@ class TarefaToggle(BaseModel):
     email: str
     tipo: str = "tarefas_diarias"
     indice: int
+
+
+class TarefaPassoToggle(BaseModel):
+    email: str
+    tipo: str = "tarefas_diarias"
+    indice: int
+    passo: int
+
+
+@app.patch("/api/tarefas/passo")
+def alternar_passo(payload: TarefaPassoToggle):
+    dados, chave, perfil = _get_perfil(payload.email)
+    lista = perfil.get(payload.tipo, [])
+    if not 0 <= payload.indice < len(lista):
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
+    item = lista[payload.indice]
+    passos = item.setdefault("passos", [])
+    if not passos:
+        passos.append({"texto": item.get("titulo", "Atividade"), "concluida": False})
+    if not 0 <= payload.passo < len(passos):
+        raise HTTPException(status_code=404, detail="Passo não encontrado")
+    passo = passos[payload.passo]
+    passo["concluida"] = not bool(passo.get("concluida", False))
+    pontos_passo = 2
+    perfil["pontuacao"] = max(0, int(perfil.get("pontuacao", 0) or 0) + (pontos_passo if passo["concluida"] else -pontos_passo))
+    item["concluida"] = bool(passos) and all(bool(etapa.get("concluida", False)) for etapa in passos)
+    salvar_dados(dados)
+    return {**item, "pontuacao": perfil["pontuacao"], "pontos_ganhos": pontos_passo if passo["concluida"] else -pontos_passo}
 
 
 @app.patch("/api/tarefas/concluir")
@@ -637,16 +680,79 @@ def get_biblioteca(q: str = "", tipo: str = ""):
 
 
 # ---------- IA ----------
+def _contexto_autorizado_para_ia(perfil):
+    preferencias = perfil.get("preferencias", {})
+    permissoes = preferencias.get("ia_permissoes", {})
+    if not isinstance(permissoes, dict) or not any(bool(permissoes.get(categoria)) for categoria in ("perfil", "preferencias", "rotina", "historico")):
+        return ""
+
+    def resumo_tarefa(tarefa):
+        return {
+            "titulo": tarefa.get("titulo", ""),
+            "periodo": tarefa.get("periodo", ""),
+            "horario": tarefa.get("horario", ""),
+            "concluida": bool(tarefa.get("concluida", False)),
+            "passos": [str(passo.get("texto", "")) for passo in tarefa.get("passos", []) if isinstance(passo, dict) and passo.get("texto")],
+        }
+
+    contexto = {}
+    if permissoes.get("perfil"):
+        contexto["perfil"] = {
+            "nome_preferido": perfil.get("nome", ""),
+            "nome_da_crianca": perfil.get("nome_crianca", ""),
+            "informacoes_da_crianca": {
+                chave: perfil.get("informacoes_crianca", {}).get(chave, "")
+                for chave in ("idade", "comunicacao", "necessidades", "interesses")
+            },
+        }
+    if permissoes.get("preferencias"):
+        contexto["preferencias_de_comunicacao"] = {
+            chave: preferencias.get(chave, "")
+            for chave in ("estilo_instrucao", "preferencias_sensoriais", "tipo_alerta")
+        }
+    if permissoes.get("rotina"):
+        contexto["rotina"] = {
+            "tarefas": [resumo_tarefa(item) for item in (perfil.get("tarefas_diarias", []) + perfil.get("tarefas_educacionais", []))[:20]],
+            "estudos": perfil.get("estudos", [])[:10],
+            "lembretes": [
+                {"mensagem": item.get("mensagem", ""), "horario": item.get("horario", ""), "ativo": bool(item.get("ativo", True))}
+                for item in perfil.get("lembretes", [])[:10]
+            ],
+            "pontuacao": perfil.get("pontuacao", 0),
+        }
+    if permissoes.get("historico"):
+        contexto["historico_registrado"] = perfil.get("historico", [])[:20]
+    return json.dumps(contexto, ensure_ascii=False)
+
+
+class MensagemIA(BaseModel):
+    papel: Literal["usuario", "assistente"]
+    texto: str = Field(min_length=1, max_length=2000)
+
+
 class PerguntaIA(BaseModel):
     email: str
-    pergunta: str
+    pergunta: str = Field(min_length=1, max_length=600)
+    historico: list[MensagemIA] = Field(default_factory=list, max_length=20)
 
 
 @app.post("/api/assistente")
 def perguntar_ia(payload: PerguntaIA):
     perfil = _get_perfil(payload.email)[2]
-    resposta = obter_resposta_ia(payload.pergunta, perfil.get("preferencias", {}).get("estilo_instrucao", "direto"))
-    return {"resposta": resposta, "modo": "online" if isinstance(resposta, list) and resposta and not resposta[0].startswith("Modo offline") else "offline"}
+    historico = "\n".join(f"{mensagem.papel}: {mensagem.texto}" for mensagem in payload.historico)
+    pergunta = payload.pergunta
+    contexto = _contexto_autorizado_para_ia(perfil)
+    partes = []
+    if contexto:
+        partes.append("Contexto do perfil compartilhado pelo usuário com autorização explícita. Use apenas se for útil e não peça novamente informações já presentes:\n" + contexto)
+    if historico:
+        partes.append("Histórico da conversa:\n" + historico)
+    if partes:
+        pergunta = "\n\n".join(partes) + "\n\nNova mensagem do usuário:\n" + payload.pergunta
+    resposta = obter_resposta_ia(pergunta, perfil.get("preferencias", {}).get("estilo_instrucao", "direto"))
+    permissoes = perfil.get("preferencias", {}).get("ia_permissoes", {})
+    dados_autorizados = [categoria for categoria in ("perfil", "preferencias", "rotina", "historico") if isinstance(permissoes, dict) and bool(permissoes.get(categoria))]
+    return {"resposta": resposta, "modo": "online" if isinstance(resposta, list) and resposta and not resposta[0].startswith("Modo offline") else "offline", "dados_autorizados": dados_autorizados}
 
 
 class TituloTarefa(BaseModel): titulo: str

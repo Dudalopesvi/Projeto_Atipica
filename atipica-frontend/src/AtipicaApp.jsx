@@ -3,6 +3,7 @@ import {
   Activity,
   BookOpen,
   Bot,
+  RotateCcw,
   Check,
   ChevronDown,
   Heart,
@@ -87,6 +88,18 @@ function Card({ children, className = "", as: Tag = "section", ...props }) {
 
 function Empty({ children }) {
   return <p className="empty" role="status">{children}</p>;
+}
+
+function TabCard({ icon: Icon, label, title, description, indicator, tone = "blue", active = false, onClick }) {
+  return (
+    <button type="button" className={`tab-card tab-card-${tone} ${active ? "active" : ""}`} onClick={onClick} aria-current={active ? "page" : undefined}>
+      <span className="tab-card-icon" aria-hidden="true"><Icon size={22} /></span>
+      <span className="tab-card-label">{label}</span>
+      <strong>{title}</strong>
+      <span className="tab-card-description">{description}</span>
+      <span className="tab-card-footer"><span className="tab-card-indicator"><span aria-hidden="true" />{indicator}</span><span className="tab-card-action">Acessar <span aria-hidden="true">→</span></span></span>
+    </button>
+  );
 }
 
 function LoginView({ onSuccess }) {
@@ -208,7 +221,27 @@ function routineVisual(title = "Atividade") {
   return "⭐";
 }
 
-function RoutineView({ tasks, reminders, childName, onToggle, onMovePeriod, onUpdateSteps, onCreateTask, onCreateReminder, score = 0 }) {
+function stepVisual(stepText, taskTitle = "") {
+  const text = `${taskTitle} ${stepText}`.toLowerCase();
+  if (text.includes("chuveiro") || text.includes("abrir")) return "🚿";
+  if (text.includes("sabonete") || text.includes("sabão")) return "🧼";
+  if (text.includes("axila")) return "🙆";
+  if (text.includes("íntim") || text.includes("partes")) return "🫧";
+  if (text.includes("pé")) return "🦶";
+  if (text.includes("cabeça") || text.includes("cabelo")) return "🧴";
+  if (text.includes("escova") || text.includes("dente")) return "🪥";
+  if (text.includes("pasta")) return "🧴";
+  if (text.includes("enxaguar") || text.includes("água")) return "💧";
+  if (text.includes("roupa") || text.includes("vestir")) return "👕";
+  if (text.includes("comer") || text.includes("refeição")) return "🍽️";
+  if (text.includes("mochila") || text.includes("escola")) return "🎒";
+  if (text.includes("guardar") || text.includes("organizar")) return "🧺";
+  if (text.includes("mão") || text.includes("lavar")) return "👐";
+  if (text.includes("dormir") || text.includes("cama")) return "🛏️";
+  return "⭐";
+}
+
+function RoutineView({ tasks, reminders, childName, onToggleStep, onMovePeriod, onCreateTask, onCreateReminder, score = 0 }) {
   const [taskForm, setTaskForm] = useState({ titulo: "", horario: "", periodo: "manha", passos: "" });
   const [reminderForm, setReminderForm] = useState({ mensagem: "", horario: "" });
   const [showTask, setShowTask] = useState(false);
@@ -223,8 +256,7 @@ function RoutineView({ tasks, reminders, childName, onToggle, onMovePeriod, onUp
 
   async function toggleStep(index) {
     if (!selectedTask) return;
-    const nextSteps = selectedSteps.map((step, stepIndex) => stepIndex === index ? { ...step, concluida: !step.concluida } : step);
-    await onUpdateSteps(selectedTask.id, nextSteps);
+    await onToggleStep(selectedTask.id, index);
   }
 
   return (
@@ -238,7 +270,7 @@ function RoutineView({ tasks, reminders, childName, onToggle, onMovePeriod, onUp
 
       <section aria-labelledby="routine-board-title"><div className="section-title-row"><div><p className="eyebrow">QUADRO VISUAL</p><h3 id="routine-board-title">Minha sequência do dia</h3></div><span className="steps-counter">{done}/{tasks.length}</span></div><div className="routine-board" role="grid" aria-label="Quadro visual da rotina por período do dia">{periods.map((period) => { const periodTasks = tasks.filter((task) => task.periodo === period.id); return <div className="routine-row" role="row" key={period.id}><div className="period-label" role="rowheader"><span className="period-icon" aria-hidden="true">{period.icon}</span><strong>{period.label}</strong><small>{period.description}</small></div><div className="period-activities" role="gridcell">{periodTasks.length === 0 ? <span className="empty-period">Nenhuma atividade</span> : periodTasks.map((task) => <div className="routine-tile-wrap" key={task.id}><button type="button" className={`routine-tile ${task.done ? "completed" : ""} ${selectedTaskId === task.id ? "selected" : ""}`} onClick={() => setSelectedTaskId(task.id)} aria-pressed={selectedTaskId === task.id} aria-label={`${task.done ? "Abrir atividade concluída" : "Abrir atividade"}: ${task.title}`}>{task.done && <span className="tile-check" aria-hidden="true"><Check size={18} /></span>}<span className="tile-image" role="img" aria-label={`Imagem: ${task.title}`}>{routineVisual(task.title)}</span><strong>{task.title}</strong><small>{task.time || "No seu tempo"}</small><span className="tile-points">{task.done ? "Feito · +10" : `${task.steps?.length || 1} passo${(task.steps?.length || 1) === 1 ? "" : "s"}`}</span></button><label className="tile-move-control"><span className="sr-only">Mover {task.title} para outro período</span><select aria-label={`Mover ${task.title} para outro período`} value={task.periodo} onChange={(event) => onMovePeriod(task.id, event.target.value)}><option value="manha">Manhã</option><option value="tarde">Tarde</option><option value="noite">Noite</option></select></label></div>)}</div></div>})}</div></section>
 
-      {selectedTask && <section className="task-step-board" aria-labelledby="selected-task-title"><div className="task-step-visual" role="img" aria-label={`Imagem da atividade ${selectedTask.title}`}>{routineVisual(selectedTask.title)}</div><div className="task-step-content"><div className="step-detail-heading"><div><p className="eyebrow">ATIVIDADE ESCOLHIDA</p><h3 id="selected-task-title">{selectedTask.title}</h3><p>Faça uma coisa de cada vez. Marque cada passo quando terminar.</p></div><button type="button" className="icon-button" onClick={() => setSelectedTaskId(null)} aria-label="Fechar atividade"><X size={18} aria-hidden="true" /></button></div><ol className="task-step-list">{selectedSteps.map((step, index) => <li className={step.concluida ? "done" : ""} key={`${selectedTask.id}-step-${index}`}><button type="button" className="step-check-button" onClick={() => toggleStep(index)} aria-pressed={Boolean(step.concluida)} aria-label={`${step.concluida ? "Desmarcar" : "Marcar"} passo ${index + 1}: ${step.texto}`}>{step.concluida ? <Check size={18} aria-hidden="true" /> : index + 1}</button><span>{step.texto}</span></li>)}</ol><div className="task-completion-row"><span>{allStepsDone ? "Todos os passos foram feitos." : "Marque todos os passos para concluir."}</span><Button onClick={() => onToggle(selectedTask.id)} disabled={!allStepsDone || selectedTask.done}>{selectedTask.done ? "Atividade concluída" : "Concluir atividade · +10 pontos"}</Button></div></div></section>}
+      {selectedTask && <section className="task-step-board" aria-labelledby="selected-task-title"><div className="task-step-visual" role="img" aria-label={`Imagem da atividade ${selectedTask.title}`}>{routineVisual(selectedTask.title)}</div><div className="task-step-content"><div className="step-detail-heading"><div><p className="eyebrow">ATIVIDADE ESCOLHIDA</p><h3 id="selected-task-title">{selectedTask.title}</h3><p>Faça uma coisa de cada vez. Marque cada passo quando terminar.</p></div><button type="button" className="icon-button" onClick={() => setSelectedTaskId(null)} aria-label="Fechar atividade"><X size={18} aria-hidden="true" /></button></div><ol className="task-step-list">{selectedSteps.map((step, index) => <li className={step.concluida ? "done" : ""} key={`${selectedTask.id}-step-${index}`}><button type="button" className="step-check-button" onClick={() => toggleStep(index)} aria-pressed={Boolean(step.concluida)} aria-label={`${step.concluida ? "Desmarcar" : "Marcar"} passo ${index + 1}: ${step.texto}`}>{step.concluida ? <Check size={18} aria-hidden="true" /> : index + 1}</button><span className="step-visual" role="img" aria-label={`Imagem do passo: ${step.texto}`}>{stepVisual(step.texto, selectedTask.title)}</span><span>{step.texto}</span><small className="step-points">{step.concluida ? "+2 pontos" : "Vale 2 pontos"}</small></li>)}</ol><div className="task-completion-row"><span>{selectedTask.done ? "Atividade concluída! Você fez todos os quadrinhos." : allStepsDone ? "Todos os quadrinhos foram marcados." : "Marque cada quadrinho quando terminar."}</span><strong>{selectedTask.done ? "Concluída" : `${selectedSteps.filter((step) => step.concluida).length} de ${selectedSteps.length} passos · 2 pontos por passo`}</strong></div></div></section>}
       <Card><h3>Lembretes</h3>{reminders.length === 0 ? <Empty>Nenhum lembrete cadastrado.</Empty> : <ul className="reminder-list">{reminders.map((item, index) => <li className="list-line" key={item.id || index}><span className="mini-icon" aria-hidden="true">!</span><span>{item.mensagem}</span><strong>{item.horario || "Sem horário"}</strong></li>)}</ul>}</Card>
     </div>
   );
@@ -248,6 +280,7 @@ function LibraryView() {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("todos");
   const [items, setItems] = useState([]);
+  const [selectedItem, setSelectedItem] = useState(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -292,13 +325,15 @@ function LibraryView() {
       </Card>
       {error && <div className="alert error" role="alert">{error}</div>}
       {loading && <p className="loading-message" role="status" aria-live="polite">Buscando materiais...</p>}
+      {selectedItem && <Card className="library-detail" aria-labelledby="library-detail-title"><div className="library-detail-header"><div><p className="eyebrow">DETALHES DO MATERIAL</p><div className="resource-type">{selectedItem.tipo}</div><h3 id="library-detail-title">{selectedItem.titulo}</h3></div><button type="button" className="icon-button" onClick={() => setSelectedItem(null)} aria-label="Fechar detalhes da biblioteca"><X size={18} aria-hidden="true" /></button></div><p className="library-detail-description">{selectedItem.descricao}</p><div className="library-detail-columns"><div><strong>Fonte</strong><span>{selectedItem.fonte || "Biblioteca Atípica"}</span></div><div><strong>Como usar</strong><span>Leia no seu ritmo e escolha uma ideia pequena para experimentar ou conversar com a equipe.</span></div></div><div className="library-detail-actions">{selectedItem.url ? <a className="btn btn-primary" href={selectedItem.url} target="_blank" rel="noreferrer">Abrir arquivo <span aria-hidden="true">↗</span></a> : <span className="library-file-note"><BookOpen size={15} aria-hidden="true" /> Subaba de leitura disponível</span>}<button type="button" className="btn btn-secondary" onClick={() => setSelectedItem(null)}>Voltar para materiais</button></div></Card>}
       <div className="library-grid" aria-live="polite">
         {items.map((item) => (
-          <Card key={item.id} as="article">
+          <Card key={item.id} as="article" className={selectedItem?.id === item.id ? "resource-selected" : ""}>
             <div className="resource-type">{item.tipo}</div>
             <h3>{item.titulo}</h3>
             <p>{item.descricao}</p>
             <small>{item.fonte}</small>
+            <button type="button" className="resource-open" onClick={() => setSelectedItem(item)} aria-label={`Ver detalhes de ${item.titulo}`}>Ver detalhes <span aria-hidden="true">→</span></button>
           </Card>
         ))}
         {!loading && items.length === 0 && <Empty>Nenhum material encontrado. Tente outra palavra ou filtro.</Empty>}
@@ -308,28 +343,61 @@ function LibraryView() {
   );
 }
 
-function AssistantView({ childName }) {
+function AssistantView({ childName, user, onUserChange }) {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([{ from: "bot", text: `Olá. Posso ajudar a organizar a rotina de ${childName || "quem você acompanha"}. Faça uma pergunta curta.` }]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [permissionStatus, setPermissionStatus] = useState("");
+  const [savingPermissions, setSavingPermissions] = useState(false);
+  const [permissions, setPermissions] = useState(() => ({ perfil: false, preferencias: false, rotina: false, historico: false }));
   const logRef = useRef(null);
+
+  useEffect(() => {
+    const saved = user?.preferencias?.ia_permissoes || {};
+    setPermissions({ perfil: Boolean(saved.perfil), preferencias: Boolean(saved.preferencias), rotina: Boolean(saved.rotina), historico: Boolean(saved.historico) });
+  }, [user]);
+
+  async function savePermissions() {
+    setSavingPermissions(true);
+    setPermissionStatus("");
+    try {
+      const updated = await patch(`/api/perfil?email=${encodeURIComponent(currentEmail)}`, { preferencias: { ia_permissoes: permissions } });
+      onUserChange(updated);
+      setPermissionStatus("Permissões salvas. A alteração vale para as próximas mensagens.");
+    } catch (e) {
+      setPermissionStatus(e.message || "Não foi possível salvar as permissões.");
+    } finally {
+      setSavingPermissions(false);
+    }
+  }
 
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [messages, loading]);
 
+  function clearConversation() {
+    if (loading) return;
+    setMessages([{ from: "bot", text: `Olá. Posso ajudar a organizar a rotina de ${childName || "quem você acompanha"}. Faça uma pergunta curta.` }]);
+    setQuestion("");
+    setError("");
+  }
+
   async function send() {
     const text = question.trim();
     if (!text || loading) return;
+    const historico = messages.slice(1).map((message) => ({
+      papel: message.from === "bot" ? "assistente" : "usuario",
+      texto: message.text,
+    }));
     setMessages((current) => [...current, { from: "user", text }]);
     setQuestion("");
     setLoading(true);
     setError("");
     try {
-      const data = await post("/api/assistente", { email: currentEmail, pergunta: text });
+      const data = await post("/api/assistente", { email: currentEmail, pergunta: text, historico });
       const answer = Array.isArray(data.resposta) ? data.resposta.join("\n") : String(data.resposta || "Sem resposta");
-      setMessages((current) => [...current, { from: "bot", text: answer, mode: data.modo }]);
+      setMessages((current) => [...current, { from: "bot", text: answer, mode: data.modo, personalized: Boolean(data.dados_autorizados?.length) }]);
     } catch (e) {
       setError(`${e.message}. Verifique se a API está disponível.`);
     } finally {
@@ -345,8 +413,16 @@ function AssistantView({ childName }) {
           <h2>Assistente Atípica</h2>
           <p>Respostas curtas e claras, sem substituir profissionais.</p>
         </div>
-        <Bot size={30} color={COLORS.primary} aria-hidden="true" />
+          <div className="assistant-actions"><Button secondary icon={RotateCcw} onClick={clearConversation} disabled={loading}>Nova conversa</Button><Bot size={30} color={COLORS.primary} aria-hidden="true" /></div>
       </div>
+      <Card className="permission-card" aria-labelledby="ai-permissions-title">
+        <div className="permission-heading"><ShieldCheck size={22} color={COLORS.primary} aria-hidden="true" /><div><h3 id="ai-permissions-title">Permissões da IA</h3><p>Escolha quais categorias podem ser usadas para personalizar as próximas respostas. A IA nunca recebe sua senha, chave ou dados de outras pessoas.</p></div></div>
+        <div className="permission-options">
+          {[{ key: "perfil", label: "Informações do perfil", detail: "Nome e informações da pessoa acompanhada." }, { key: "preferencias", label: "Preferências", detail: "Estilo de comunicação e preferências sensoriais." }, { key: "rotina", label: "Rotina e estudos", detail: "Tarefas, passos, lembretes e estudos." }, { key: "historico", label: "Histórico registrado", detail: "Registros feitos por você no sistema." }].map((item) => <label className="check-option" key={item.key}><input type="checkbox" checked={permissions[item.key]} onChange={(event) => setPermissions((current) => ({ ...current, [item.key]: event.target.checked }))} /><span><strong>{item.label}</strong><small>{item.detail}</small></span></label>)}
+        </div>
+        <div className="permission-footer"><Button onClick={savePermissions} disabled={savingPermissions}>{savingPermissions ? "Salvando..." : "Salvar permissões"}</Button><span className="assistant-note">{Object.values(permissions).some(Boolean) ? "IA com acesso autorizado às categorias selecionadas." : "IA sem acesso aos dados da sua conta."}</span></div>
+        {permissionStatus && <p className="privacy-note" role="status">{permissionStatus}</p>}
+      </Card>
       <Card className="chat-card">
         <div className="chat-messages" ref={logRef} role="log" aria-live="polite" aria-label="Conversa com o Assistente Atípica">
           {messages.map((message, index) => {
@@ -354,6 +430,7 @@ function AssistantView({ childName }) {
             return (
               <div key={index} className={`bubble ${message.from}`}>
                 {message.mode === "offline" && <small>Modo offline</small>}
+                {message.personalized && <small className="personalized-note"><ShieldCheck size={12} aria-hidden="true" /> Resposta personalizada com dados autorizados</small>}
                 {lines.map((line, lineIndex) => <React.Fragment key={lineIndex}>{line}{lineIndex < lines.length - 1 && <br />}</React.Fragment>)}
               </div>
             );
@@ -699,12 +776,13 @@ export default function AtipicaApp() {
     }
   };
 
-  const updateTaskSteps = async (id, passos) => {
+  const toggleTaskStep = async (id, passo) => {
     try {
-      await patch(`/api/tarefas/${id}?email=${encodeURIComponent(user.email)}`, { passos });
+      const result = await patch("/api/tarefas/passo", { email: user.email, indice: id, passo });
+      if (typeof result.pontuacao === "number") setScore(result.pontuacao);
       await load(user);
     } catch (e) {
-      setError(e.message || "Não foi possível salvar os passos.");
+      setError(e.message || "Não foi possível marcar este passo.");
     }
   };
 
@@ -768,18 +846,26 @@ export default function AtipicaApp() {
             <div><p className="eyebrow">UM PASSO DE CADA VEZ</p><h1 id="welcome-title">Olá, {user.nome.split(" ")[0]}.</h1><p>O que ajudaria você e {user.nome_crianca || "a pessoa acompanhada"} hoje?</p></div>
             <div className="welcome-note"><strong>Este espaço é seu.</strong><span>Você pode ajustar a rotina, buscar informação ou apenas registrar como foi o dia.</span></div>
           </section>
+          <section className="dashboard-summary" aria-label="Resumo do dia">
+            <div className="dashboard-stat"><span className="dashboard-stat-icon" aria-hidden="true"><Activity size={18} /></span><div><small>Rotina de hoje</small><strong>{tasks.filter((task) => task.concluida).length}/{tasks.length}</strong><span>{tasks.length ? "atividades concluídas" : "nenhuma atividade cadastrada"}</span></div></div>
+            <div className="dashboard-stat"><span className="dashboard-stat-icon" aria-hidden="true"><Check size={18} /></span><div><small>Pontuação</small><strong>{score}</strong><span>{score === 1 ? "ponto conquistado" : "pontos conquistados"}</span></div></div>
+            <div className="dashboard-stat"><span className="dashboard-stat-icon" aria-hidden="true"><ShieldCheck size={18} /></span><div><small>Próximo cuidado</small><strong>{reminders.length}</strong><span>{reminders.length === 1 ? "lembrete ativo" : "lembretes ativos"}</span></div></div>
+          </section>
           {!user.nome_crianca && <div className="privacy-note">Complete o nome no Perfil quando se sentir à vontade para organizar os dois ritmos juntos.</div>}
-          <div className="home-grid">
-            <Card><Activity size={24} color={COLORS.primary} aria-hidden="true" /><h3>Rotina</h3><p>Atividades, lembretes e uma versão para imprimir.</p><Button onClick={() => setTab("rotina")}>Abrir rotina</Button></Card>
-            <Card><Bot size={24} color={COLORS.primary} aria-hidden="true" /><h3>Assistente</h3><p>Orientações em linguagem simples para apoiar decisões.</p><Button onClick={() => setTab("assistente")}>Conversar</Button></Card>
-            <Card><Users size={24} color={COLORS.primary} aria-hidden="true" /><h3>Rede de apoio</h3><p>Contatos e registros compartilhados por você.</p><Button onClick={() => setTab("perfil")}>Gerenciar</Button></Card>
-            <Card><Heart size={24} color={COLORS.primary} aria-hidden="true" /><h3>Comunidade</h3><p>Trocas com pessoas que entendem diferentes vivências.</p><Button onClick={() => setTab("comunidade")}>Conhecer</Button></Card>
-            <Card><BookOpen size={24} color={COLORS.primary} aria-hidden="true" /><h3>Biblioteca</h3><p>Conteúdos para explorar no seu tempo.</p><Button onClick={() => setTab("biblioteca")}>Pesquisar</Button></Card>
-          </div>
+          <section className="tabs-section" aria-labelledby="explore-title">
+            <div className="tabs-section-heading"><div><p className="eyebrow">EXPLORE SEU ESPAÇO</p><h2 id="explore-title">Escolha uma área para continuar</h2><p>Você pode entrar em qualquer bloco e voltar quando quiser.</p></div><span className="tabs-section-mark" aria-hidden="true"><span /><span /><span /></span></div>
+            <div className="home-grid" role="list">
+              <TabCard icon={Activity} label="Organização" title="Rotina" description="Atividades, lembretes e um quadro visual para o dia." indicator={tasks.length ? `${tasks.length} atividades` : "Começar agora"} tone="blue" active={tab === "rotina"} onClick={() => setTab("rotina")} />
+              <TabCard icon={Bot} label="Decisão" title="Assistente" description="Orientações claras para pensar nos próximos passos." indicator="Apoio disponível" tone="yellow" active={tab === "assistente"} onClick={() => setTab("assistente")} />
+              <TabCard icon={Users} label="Conexão" title="Rede de apoio" description="Contatos e registros compartilhados por você." indicator="Seu espaço" tone="green" active={tab === "perfil"} onClick={() => setTab("perfil")} />
+              <TabCard icon={Heart} label="Comunidade" title="Trocas" description="Conversas com pessoas que entendem diferentes vivências." indicator="Conectar" tone="red" active={tab === "comunidade"} onClick={() => setTab("comunidade")} />
+              <TabCard icon={BookOpen} label="Informação" title="Biblioteca" description="Conteúdos para explorar no seu tempo e no seu ritmo." indicator="Materiais" tone="blue" active={tab === "biblioteca"} onClick={() => setTab("biblioteca")} />
+            </div>
+          </section>
         </div>}
-        {tab === "rotina" && <RoutineView tasks={tasks} reminders={reminders} childName={user.nome_crianca} score={score} onToggle={toggle} onMovePeriod={moveTask} onUpdateSteps={updateTaskSteps} onCreateTask={createTask} onCreateReminder={createReminder} />}
+        {tab === "rotina" && <RoutineView tasks={tasks} reminders={reminders} childName={user.nome_crianca} score={score} onToggle={toggle} onMovePeriod={moveTask} onToggleStep={toggleTaskStep} onCreateTask={createTask} onCreateReminder={createReminder} />}
         {tab === "biblioteca" && <LibraryView />}
-        {tab === "assistente" && <AssistantView childName={user.nome_crianca} />}
+        {tab === "assistente" && <AssistantView childName={user.nome_crianca} user={user} onUserChange={setUser} />}
         {tab === "comunidade" && <CommunityView />}
         {tab === "perfil" && <ProfileView user={user} onUserChange={setUser} />}
       </main>
